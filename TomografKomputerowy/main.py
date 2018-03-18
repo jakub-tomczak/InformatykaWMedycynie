@@ -1,9 +1,12 @@
 from scipy import misc
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
+file = "photo.png"
+directory = os.getcwd() + "\\res\\"
 
-image = misc.imread('res/photo.png', flatten=True).astype('float64')
+image = misc.imread('{dir}{file}'.format(dir = directory, file = file), flatten=True).astype('float64')
 
 def radon_example():
     # Read image as 64bit float gray scale
@@ -64,7 +67,7 @@ def bresenham(image, start, end):
     dx = np.abs(x2 - x1)
     dy = np.abs(y2 - y1)
     e = dx / 2
-    image[x1,y1] = 1
+    image[y1,x1] = 1
 
     if dx == 0 or dy == 0:
         draw_straight_line(image, start, end)
@@ -78,7 +81,7 @@ def bresenham(image, start, end):
                     y1 = y1 + yi
                     e = e + dx
                 #print(x1, y1)
-                image[x1, y1] = 1
+                image[y1, x1] = 1
         else:
             #os wiodaca OY
             for i in range(0, dy):
@@ -88,7 +91,7 @@ def bresenham(image, start, end):
                     x1 = x1 + xi
                     e = e + dy
                 #print(x1, y1)
-                image[x1, y1] = 1
+                image[y1, x1] = 1
 
 def draw_straight_line(image, start, end):
     if start[0] == end[0]:
@@ -121,14 +124,12 @@ def check_borders(point, size):
     return (check_value(point[0], size),check_value(point[1], size))
 
 def draw_emitter(image, angle):
-    calculate_line(image, angle)
-    return
     for i in range(-8, 9, 4):
         calculate_line(image, angle + i)
 
 def calculate_line(image, angle):
-    size = (int)(len(image)/2)
-    radius = size - 1
+    size = len(image)
+    radius = (int)(size / 2) - 1
     center = (radius, radius)
     x1, y1 = calculatePosition(angle, radius, center)
     x1, y1 = check_borders((x1,y1), size)
