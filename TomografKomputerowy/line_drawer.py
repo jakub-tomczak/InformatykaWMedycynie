@@ -63,16 +63,22 @@ def check_value(val, size):
 def check_borders(point, size):
     return (check_value(point[0], size),check_value(point[1], size))
 
-def calculate_line(image, angle):
-    size = len(image)
-    radius = (int)(size / 2) - 1
-    center = (radius, radius)
-    calculate_line(image, angle, size, center)
 
-def calculate_line(image, angle, diameter, center):
+def draw_line(image, angle = None, diameter = None, center = None, start_point = None, end_point = None):
+    if start_point != None and end_point != None:
+        bresenham(image, start_point, end_point)
+        return
+
+    if diameter == None:
+        diameter = len(image)
     radius = (int)(diameter / 2) - 1
+    if center == None:
+        center = (radius, radius)
+
     x1, y1 = calculatePosition(angle, radius, center)
     x1, y1 = check_borders((x1,y1), diameter)
+
+    print(x1,y1)
 
     x2 = diameter - x1
     y2 = diameter - y1
