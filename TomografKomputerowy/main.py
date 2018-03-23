@@ -76,7 +76,7 @@ def calculate_emission_ray(start_point, diameter, angle):
 
 def draw_rays_new(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, diameter):
     angle_between_rays = emission_angle / (n_detectors - 1)
-    angles = 180+ np.arange(-emission_angle/2, emission_angle/2 + emission_angle/n_detectors , angle_between_rays)
+    angles = np.arange(-emission_angle/2, emission_angle/2 + emission_angle/n_detectors , angle_between_rays)
 
     radius = diameter // 2 - 1
     center = (radius, radius)
@@ -85,8 +85,9 @@ def draw_rays_new(oryg_image, image, angle, n_detectors, sinogram_arr, emission_
     x = 0
     for i in angles:
         start_point = main_ray_coordinates
-        end_point = calculate_emission_ray(start_point, diameter, i)
-        sum = draw_line(oryg_image, image, sinogram_arr, start_point=start_point, end_point=end_point)
+        end_point = calculatePositionSafe(angle + i*2, diameter, center)
+        end_point = (diameter - end_point[0], diameter - end_point[1])
+        sum = draw_line(oryg_image, image, image, sinogram_arr, start_point=start_point, end_point=end_point)
         #print(i,x, sum)
         #sinogram_arr[angle, x] = sum
         x += 1
@@ -122,27 +123,36 @@ def process(image):
     #loop that draws rays
     #for i in range(80, 100):
     #    draw_emitter(oryg_image, new_image, i, n_detectors, sinogram_arr, emission_angle, diameter=len(new_image))
-    draw_emitter(oryg_image, new_image, 330, n_detectors, sinogram_arr, emission_angle, diameter=len(new_image))
+    draw_emitter(oryg_image, new_image, 90, n_detectors, sinogram_arr, emission_angle, diameter=len(new_image))
     plot_image(new_image)
+
+def debug(image):
+     angle = 360
+     im = np.zeros(image.shape)
+     sinogram_arr = np.zeros((angle, len(image)))
+     draw_rays_new(im, im, 0, 60, None, 20, len(image))
+     for i in range(0,angle):
+        rotation = misc.imrotate(im, i ).astype('float64')
+        result = np.multiply(rotation, image)
+        #plot_image(result)
+        #plot_image(rotation)
+        res = sum(result)
+        sinogram_arr[i:] = res
+     plot_image(sinogram_arr)
+
 
 if __name__ == "__main__":
     file = "photo.png"
     directory = os.getcwd() + "\\res\\"
     #parametry
     #   liczba detektorów
-    n_detectors = 50
+    n_detectors = 100
     #   rozpiętość kątowa
     emission_angle = 50
 
     image = misc.imread('{dir}{file}'.format(dir=directory, file=file), flatten=True).astype('float64')
 
-    size = 450
-    im = np.zeros((size,size))
-    y = size // 4
-    x = size // 2
-    im[y:x, y:x] = 1
-    im[2*y:3*y, 2*y:3*y] = 1
-    #radon_example(im)
+    #debug(image)
 
     process(image)
     # plt.subplot(1, 1, 1), plt.imshow(new_image, cmap='gray')
