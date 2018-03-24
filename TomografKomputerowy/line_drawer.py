@@ -20,9 +20,9 @@ def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None,
     count = 0
     if dx == 0 or dy == 0:
         if reconstruction_image is None:
-            draw_straight_line(image, start, end)
-            sum += np.sum(oryg_image[y1, :]) if dx == 0 else np.sum(oryg_image[:, x1])
-            count += len(oryg_image)
+            s, c = draw_straight_line(image,oryg_image, start, end, value)
+            sum += s
+            count += c
         else:
             reconstruct_straight_line(reconstruction_image, sinogram_value, start, end)
     else:
@@ -71,13 +71,23 @@ def reconstruct_straight_line(image, value, start, end):
     if end[1] == start[1]:
         image[start[1], :] += value
 
-def draw_straight_line(image, start, end):
+def draw_straight_line(image,oryg_image, start, end, value):
     #print("drawing straight line")
     if start[0] == end[0]:
-        image[:,start[0]] = 1
-    if end[1] == start[1]:
-        image[start[1],:] = 1
+        s = start[1] if start[1] < end[1] else end[1]
+        e = end[1] if end[1] > start[1] else start[1]
+        sum = np.sum(oryg_image[s:e, start[0]])
+        count = e - s
+        image[s:e, start[0]] = value
 
+    if end[1] == start[1]:
+        s = start[0] if start[0] < end[0] else end[0]
+        e = end[0] if end[0] > start[0] else start[0]
+        sum = np.sum(oryg_image[start[1], s:e])
+        count = e - s
+
+        image[start[1], s:e] = value
+    return sum, count
 
 def calculatePosition(angle, radius, circle_middle = (0,0)):
     rad = angle / 180 * np.pi

@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import os
 from line_drawer import \
     bresenham, draw_line, calculatePosition, check_borders, calculatePositionSafe, reconstruct_line
-
+import time
+from scipy.ndimage.filters import convolve
 
 def radon_example(image):
     # Read image as 64bit float gray scale
@@ -31,23 +32,45 @@ def plot_image(image):
     plt.subplot(1, 1, 1), plt.imshow(image, cmap='gray')
     plt.show()
 
+def plot_graph(xAxis, yAxis, title):
+    import matplotlib.pyplot as plt
+    plt.plot(xAxis, yAxis)
+    plt.ylabel(title)
+    plt.show()
+
+
 def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors):
     angle_between_rays = emission_angle / (n_detectors - 1)
     angles = np.arange(-emission_angle / 2, emission_angle / 2 + emission_angle / n_detectors, angle_between_rays)
 
     radius = diameter // 2 - 1
     center = (radius, radius)
-    start_point = calculatePositionSafe(angle, diameter, center)
+    start = calculatePositionSafe(angle, diameter, center)
 
     x = 0
-    for y in angles:
-        end_point = calculatePositionSafe(angle + y*2, diameter, center)
-        end_point = (diameter - end_point[0], diameter - end_point[1])
-        reconstruct_line(start_point=start_point, end_point=end_point, sinogram_value=sinogram[angle, x], reconstruction_image=image)
+    for i in angles:
+        if parallel_rays_mode:
+            start, end = parallel_ray(start, angle, i*2, diameter, center)
+        else:
+            end = inclined_ray(angle, i*2, diameter, center)
+        reconstruct_line(sinogram_value=sinogram[angle, x], reconstruction_image=image, start_point=start, end_point=end)
         x+=1
+
 def normalize_image(image):
     maxV = np.max(image)
+    if maxV == 0:
+        return image
     return (image / maxV ) * 255
+
+def parallel_ray(main_point_start, main_angle, minor_angle, diameter, center):
+    start = calculatePositionSafe(main_angle + minor_angle, diameter, center)
+    end = calculatePositionSafe(main_angle - 180 + (-1)*minor_angle, diameter, center)
+    return start, end
+
+def inclined_ray(main_angle, minor_angle, diameter, center):
+    end_point = calculatePositionSafe(main_angle + minor_angle, diameter, center)
+    return (diameter - end_point[0], diameter - end_point[1])
+
 
 def radon(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, diameter):
     angle_between_rays = emission_angle / (n_detectors - 1)
@@ -55,16 +78,22 @@ def radon(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, d
 
     radius = diameter // 2 - 1
     center = (radius, radius)
-    start_point = calculatePositionSafe(angle, diameter, center)
-
+    start = calculatePositionSafe(angle, diameter, center)
     x = 0
     for i in angles:
-        end_point = calculatePositionSafe(angle + i*2, diameter, center)
-        end_point = (diameter - end_point[0], diameter - end_point[1])
-        sum = draw_line(oryg_image, image, start_point=start_point, end_point=end_point)
-        sinogram_arr[angle, x] = sum
+        if parallel_rays_mode:
+            start, end = parallel_ray(start, angle, i*2, diameter, center)
+        else:
+            end = inclined_ray(angle, i*2, diameter, center)
+        line_sum = draw_line(oryg_image, image, start_point=start, end_point=end)
+        sinogram_arr[angle, x] = line_sum
         x += 1
 
+
+    if use_convolution_filter:
+        sinogram_arr[angle, :] = convolve(sinogram_arr[angle, :], kernel)
+
+    #plot_graph(range(0, sinogram_arr.shape[1]), line, "{a}".format(a =angle))
 def get_new_image_shape(old_image):
     if old_image.shape[0] != old_image.shape[1]:
         raise Exception('Image is not a square!')
@@ -85,10 +114,8 @@ def prepare_image(image):
 
     return new_image
 
-
-
 def display_status(num, all):
-    os.system('cls')
+    #os.system('cls')
     p = num * 100 // all
     print("{status}>{spaces}{percent}%".format(status='-' * (p), spaces=(100 - p - 1) * ' ', percent=p))
 
@@ -103,23 +130,28 @@ def process(image):
 
     #create sinogram
     print("Creating sinogram")
-    for i in range(0, 360):
+    rays_image = np.zeros(new_image_size)
+
+    for i in range(0, radon_angle):
         rays_image = np.zeros(new_image_size)
         display_status(i, radon_angle)
         radon(oryg_image, rays_image, i, n_detectors, sinogram_arr, emission_angle, diameter=new_image_size[0])
+
+    plot_image(sinogram_arr)
     sinogram_arr = normalize_image(sinogram_arr)
 
+    plot_image(sinogram_arr)
+    #return sinogram_arr, reconstructed
 
     print('Reconstructing image')
     #reconstruct image
     for i in range(0, radon_angle):
         display_status(i, radon_angle)
         inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=i, emission_angle=emission_angle,n_detectors=n_detectors)
-
     return sinogram_arr, reconstructed
 
 def debug(image):
-    # im = discrete_radon_transform(image, 360)
+     #im = discrete_radon_transform(image, 360)
     # im = misc.imrotate(im, 90).astype('float64')
 
     # plot_image(im)
@@ -140,22 +172,36 @@ def debug(image):
         res = sum(result)
         sinogram_arr[i:] = res
 
+def generate_kernel():
+    top = -4/(np.pi**2)
+    half = kernel_length // 2
+    for i in range(0, kernel_length):
+        kernel[i] = ( 0 if (i-half)%2==0 else (top/((i-half)**2)) )
+    kernel[kernel_length // 2] = 1
+
 
 radon_angle = 360
+kernel_length = 100
+kernel = np.zeros((kernel_length))
+use_convolution_filter = True
+parallel_rays_mode = True
 if __name__ == "__main__":
+    generate_kernel()
     file = "photo.png"
     directory = os.getcwd() + "\\res\\"
     #parametry
     #   liczba detektorów
-    n_detectors = 100
+    n_detectors = 200
     #   rozpiętość kątowa
-    emission_angle = 120
+    emission_angle = 30
 
     image = misc.imread('{dir}{file}'.format(dir=directory, file=file), flatten=True).astype('float64')
     #get image from debug source
     #image = debug(image)
+    #expected_sinogram = discrete_radon_transform(image, radon_angle)
+    #plot_image(expected_sinogram)
+
     sinogram, reconstructed = process(image)
+    plot_image(sinogram)
     plot_image(reconstructed)
-    expected_sinogram = discrete_radon_transform(image, radon_angle)
-    plot_image(expected_sinogram)
 
