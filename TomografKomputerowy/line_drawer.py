@@ -1,7 +1,7 @@
 import numpy as np
 
-#returns sum of pixels values that Bresenham's alg went through
-def bresenham(oryg_image,image, start, end, sinogram_arr):
+#returns sum of pixels values that Bresenham's alg went through or reconstructs image along path
+def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None, reconstruction_image = None):
     value = 255
     x1,y1 = start
     x2,y2 = end
@@ -17,11 +17,22 @@ def bresenham(oryg_image,image, start, end, sinogram_arr):
     dy = np.abs(y2 - y1)
     e = dx / 2
     sum = 0
+    count = 0
     if dx == 0 or dy == 0:
-        sum += draw_straight_line(image, start, end)
+        if reconstruction_image is None:
+            draw_straight_line(image, start, end)
+            sum += np.sum(oryg_image[y1, :]) if dx == 0 else np.sum(oryg_image[:, x1])
+            count += len(oryg_image)
+        else:
+            reconstruct_straight_line(reconstruction_image, sinogram_value, start, end)
     else:
-        image[y1, x1] = value
-        sum += oryg_image[y1, x1]
+        if reconstruction_image is None:
+            image[y1, x1] = value
+            sum += oryg_image[y1, x1]
+            count += 1
+        else:
+            reconstruction_image[y1, x1] += sinogram_value
+
         if dx > dy:
             #OX priority
             for i in range(0, dx):
@@ -30,8 +41,13 @@ def bresenham(oryg_image,image, start, end, sinogram_arr):
                 if e < 0:
                     y1 = y1 + yi
                     e = e + dx
-                image[y1, x1] = value
-                sum += oryg_image[y1, x1]
+                if reconstruction_image is None:
+                    image[y1, x1] = value
+                    sum += oryg_image[y1, x1]
+                    count += 1
+                else:
+                    reconstruction_image[y1, x1] += sinogram_value
+
         else:
             #OY priority
             for i in range(0, dy):
@@ -40,18 +56,28 @@ def bresenham(oryg_image,image, start, end, sinogram_arr):
                 if e < 0:
                     x1 = x1 + xi
                     e = e + dy
-                image[y1, x1] = value
-                sum += oryg_image[y1, x1]
-    return sum
+                if reconstruction_image is None:
+                    image[y1, x1] = value
+                    sum += oryg_image[y1, x1]
+                    count += 1
+                else:
+                    reconstruction_image[y1, x1] += sinogram_value
+
+    return (sum // count if reconstruction_image is None else None)
+
+def reconstruct_straight_line(image, value, start, end):
+    if start[0] == end[0]:
+        image[:, start[0]] += value
+    if end[1] == start[1]:
+        image[start[1], :] += value
 
 def draw_straight_line(image, start, end):
-    print("drawing straight line")
+    #print("drawing straight line")
     if start[0] == end[0]:
         image[:,start[0]] = 1
     if end[1] == start[1]:
         image[start[1],:] = 1
-    #image is square
-    return len(image)
+
 
 def calculatePosition(angle, radius, circle_middle = (0,0)):
     rad = angle / 180 * np.pi
@@ -59,7 +85,7 @@ def calculatePosition(angle, radius, circle_middle = (0,0)):
 
 '''Calculates position x1, y1 and changes these values according to the available space'''
 def calculatePositionSafe(angle, diameter, circle_middle = (0,0)):
-    x1, y1 = calculatePosition(angle, (int)(diameter / 2) - 1, circle_middle)
+    x1, y1 = calculatePosition(angle, diameter // 2 - 1, circle_middle)
     return check_borders((x1, y1), diameter)
 
 def check_value(val, size):
@@ -72,24 +98,24 @@ def check_value(val, size):
 def check_borders(point, size):
     return (check_value(point[0], size),check_value(point[1], size))
 
+def reconstruct_line(sinogram_value, reconstruction_image, start_point, end_point):
+    bresenham(sinogram_value=sinogram_value, reconstruction_image=reconstruction_image, start=start_point, end=end_point)
+
 #draws line between start_point and end_point or draws a diameter using the angle
-def draw_line(oryg_image, image,  sinogram_arr,angle = None, diameter = None, center = None, start_point = None, end_point = None):
+def draw_line(oryg_image, image, angle = None, diameter = None, center = None, start_point = None, end_point = None):
     if start_point != None and end_point != None:
-        return bresenham(oryg_image, image, start_point, end_point, sinogram_arr)
+        return bresenham(start_point, end_point, oryg_image=oryg_image, image=image)
 
     if diameter == None:
         diameter = len(image)
 
-    radius = (int)(diameter / 2) - 1
+    radius = diameter // 2 - 1
 
     if center == None:
         center = (radius, radius)
 
-    x1, y1 = calculatePosition(angle, radius, center)
-    x1, y1 = check_borders((x1,y1), diameter)
-
-    #print(x1,y1)
+    x1, y1 = calculatePositionSafe(angle, diameter, center)
 
     x2 = diameter - x1
     y2 = diameter - y1
-    return bresenham(oryg_image, image, (x1, y1), (x2, y2), sinogram_arr)
+    return bresenham((x1, y1), (x2, y2), oryg_image=oryg_image, image=image)
