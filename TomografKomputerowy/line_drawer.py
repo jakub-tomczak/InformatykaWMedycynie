@@ -32,7 +32,6 @@ def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None,
             count += 1
         else:
             reconstruction_image[y1, x1] += sinogram_value
-
         if dx > dy:
             #OX priority
             for i in range(0, dx):
@@ -63,7 +62,8 @@ def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None,
                 else:
                     reconstruction_image[y1, x1] += sinogram_value
 
-    return (sum // count if reconstruction_image is None else None)
+
+    return (sum / count if reconstruction_image is None else None)
 
 def reconstruct_straight_line(image, value, start, end):
     if start[0] == end[0]:
