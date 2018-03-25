@@ -63,7 +63,7 @@ def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None,
                     reconstruction_image[y1, x1] += sinogram_value
 
 
-    return (sum / count if reconstruction_image is None else None)
+    return (sum / (count+1) if reconstruction_image is None else None)
 
 def reconstruct_straight_line(image, value, start, end):
     if start[0] == end[0]:
