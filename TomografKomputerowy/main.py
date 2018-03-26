@@ -123,7 +123,7 @@ def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors,
         x+=1
 
 
-def process(image, on_change):
+def process(image, on_change, on_inverse_transform_change, on_finish):
     #new image
     new_image_size = get_new_image_shape(image)
 
@@ -159,7 +159,8 @@ def process(image, on_change):
     for i in range(0, radon_angle):
         display_status(i, radon_angle)
         inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=i, emission_angle=emission_angle,n_detectors=n_detectors, values = reconstruction_values)
-    plot_image(reconstructed / reconstruction_values)
+        if on_inverse_transform_change != None:
+            on_inverse_transform_change(i)
     if use_convolution_in_output:
         reconstructed = convolve(reconstructed, kernel_reconstructed)
     #if use_gauss_in_reconstruction:
@@ -168,15 +169,20 @@ def process(image, on_change):
     if normalize_output:
         reconstructed = normalize_image_to_one(reconstructed)
 
+    if on_finish != None:
+        on_finish(reconstructed)
+
     return sinogram_arr, reconstructed
 
 #parameters
 #   emiters detectors number
-n_detectors = 100
+n_detectors = 10
 #   angle between first and last ray
-emission_angle = 60
+emission_angle = 10
 #   rotation
 radon_angle = 180
+
+step = 0
 
 parallel_rays_mode = False
 normalize_output = True
