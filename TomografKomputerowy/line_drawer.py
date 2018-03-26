@@ -1,7 +1,7 @@
 import numpy as np
 
 #returns sum of pixels values that Bresenham's alg went through or reconstructs image along path
-def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None, reconstruction_image = None):
+def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None, reconstruction_image = None, values = None):
     value = 255
     x1,y1 = start
     x2,y2 = end
@@ -24,7 +24,7 @@ def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None,
             sum += s
             count += c
         else:
-            reconstruct_straight_line(reconstruction_image, sinogram_value, start, end)
+            reconstruct_straight_line(reconstruction_image, sinogram_value, start, end, values)
     else:
         if reconstruction_image is None:
             image[y1, x1] = value
@@ -32,6 +32,7 @@ def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None,
             count += 1
         else:
             reconstruction_image[y1, x1] += sinogram_value
+            values[y1, x1] += 1
         if dx > dy:
             #OX priority
             for i in range(0, dx):
@@ -46,6 +47,7 @@ def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None,
                     count += 1
                 else:
                     reconstruction_image[y1, x1] += sinogram_value
+                    values[y1, x1] += 1
 
         else:
             #OY priority
@@ -61,15 +63,18 @@ def bresenham(start, end, oryg_image = None,image = None, sinogram_value = None,
                     count += 1
                 else:
                     reconstruction_image[y1, x1] += sinogram_value
+                    values[y1, x1] += 1
 
 
     return (sum / (count+1) if reconstruction_image is None else None)
 
-def reconstruct_straight_line(image, value, start, end):
+def reconstruct_straight_line(image, value, start, end, values):
     if start[0] == end[0]:
         image[:, start[0]] += value
+        values[:, start[0]] += 1
     if end[1] == start[1]:
         image[start[1], :] += value
+        values[start[1],:] += 1
 
 def draw_straight_line(image,oryg_image, start, end, value):
     #print("drawing straight line")
@@ -108,8 +113,8 @@ def check_value(val, size):
 def check_borders(point, size):
     return (check_value(point[0], size),check_value(point[1], size))
 
-def reconstruct_line(sinogram_value, reconstruction_image, start_point, end_point):
-    bresenham(sinogram_value=sinogram_value, reconstruction_image=reconstruction_image, start=start_point, end=end_point)
+def reconstruct_line(sinogram_value, reconstruction_image, start_point, end_point, values):
+    bresenham(sinogram_value=sinogram_value, reconstruction_image=reconstruction_image, start=start_point, end=end_point, values = values)
 
 #draws line between start_point and end_point or draws a diameter using the angle
 def draw_line(oryg_image, image, angle = None, diameter = None, center = None, start_point = None, end_point = None):

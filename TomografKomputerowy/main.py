@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 from numpy.fft import fftfreq, fft, ifft
 
-from skimage.filters import gaussian
+#from skimage.filters import gaussian
 
 from line_drawer import \
     bresenham, draw_line, calculatePosition, check_borders, calculatePositionSafe, reconstruct_line
@@ -76,8 +76,8 @@ def clear_before_reconstruction(image):
     freqencies = fftfreq(image_size).reshape(-1, 1)
     omega = 2 * np.pi * freqencies
     fourier_filter = 2 * np.abs(freqencies)
-    if use_cosine_in_fourier:
-        fourier_filter *= np.cos(omega)
+#    if use_cosine_in_fourier:
+#        fourier_filter *= np.cos(omega)
     projection = fft(image, axis=0) * fourier_filter
     return np.real(ifft(projection, axis=0))
 
@@ -105,7 +105,7 @@ def radon(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, d
         sinogram_arr[angle, x] = line_sum
         x += 1
 
-def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors):
+def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors, values):
     angle_between_rays = emission_angle / (n_detectors - 1)
     angles = np.arange(-emission_angle / 2, emission_angle / 2 + emission_angle / n_detectors, angle_between_rays)
 
@@ -119,11 +119,11 @@ def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors)
             start, end = parallel_ray(start, angle, i*2, diameter, center)
         else:
             end = inclined_ray(angle, i*2, diameter, center)
-        reconstruct_line(sinogram_value=sinogram[angle, x], reconstruction_image=image, start_point=start, end_point=end)
+        reconstruct_line(sinogram_value=sinogram[angle, x], reconstruction_image=image, start_point=start, end_point=end, values=values)
         x+=1
 
 
-def process(image):
+def process(image, on_change):
     #new image
     new_image_size = get_new_image_shape(image)
 
@@ -139,6 +139,9 @@ def process(image):
         rays_image = np.zeros(new_image_size)
         display_status(i, radon_angle)
         radon(oryg_image, rays_image, i, n_detectors, sinogram_arr, emission_angle, diameter=new_image_size[0])
+        if on_change != None:
+            on_change(oryg_image, rays_image, sinogram_arr, i)
+        #plot_image(rays_image+oryg_image)
 
     print('Reconstructing image')
 
@@ -152,14 +155,15 @@ def process(image):
             sinogram_arr[i, : ] = convolve(sinogram_arr[i, :], kernel)
 
     #reconstruct image
+    reconstruction_values = np.ones(new_image_size)
     for i in range(0, radon_angle):
         display_status(i, radon_angle)
-        inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=i, emission_angle=emission_angle,n_detectors=n_detectors)
-
+        inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=i, emission_angle=emission_angle,n_detectors=n_detectors, values = reconstruction_values)
+    plot_image(reconstructed / reconstruction_values)
     if use_convolution_in_output:
         reconstructed = convolve(reconstructed, kernel_reconstructed)
-    if use_gauss_in_reconstruction:
-        reconstructed = gaussian(reconstructed)
+    #if use_gauss_in_reconstruction:
+    #    reconstructed = gaussian(reconstructed)
 
     if normalize_output:
         reconstructed = normalize_image_to_one(reconstructed)
@@ -168,20 +172,20 @@ def process(image):
 
 #parameters
 #   emiters detectors number
-n_detectors = 400
+n_detectors = 100
 #   angle between first and last ray
 emission_angle = 60
 #   rotation
 radon_angle = 180
 
-parallel_rays_mode = True
+parallel_rays_mode = False
 normalize_output = True
 
 #filters parameters
 #sinogram convolution
 kernel_length = 5
 kernel = np.zeros(( kernel_length))
-use_convolution_filter = False
+use_convolution_filter = True
 
 #fourier reconstruction
 use_fourier_reconstruction = False
@@ -196,9 +200,14 @@ kernel_reconstructed = np.ones((9,9))
 file = "photo.png"
 directory = os.getcwd() + "\\res\\"
 
-if __name__ == "__main__":
-    generate_kernel()
+filename_to_load = ''
+image = np.zeros((1,1))
+generate_kernel()
 
+def display_filename():
+    print('file is ' + filename_to_load)
+
+if __name__ == "__main__":
     image = misc.imread('{dir}{file}'.format(dir=directory, file=file), flatten=True).astype('float64')
 
     sinogram, reconstructed = process(image)
