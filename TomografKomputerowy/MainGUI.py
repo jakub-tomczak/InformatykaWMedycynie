@@ -78,9 +78,10 @@ class Application(tk.Frame):
             img = Image.frombytes('L', (img.shape[1],img.shape[0]), img.astype('b').tostring())
         img = img.resize((canvas.winfo_width(), canvas.winfo_height()), Image.ANTIALIAS)
         self.canvases[image_type].image = ImageTk.PhotoImage(img)
-        canvas.create_image(0, 0, image=canvas.image, anchor=tk.NW)
-        canvas.update()
+        self.canvases[image_type].create_image(0, 0, image=canvas.image, anchor=tk.NW)
         self.update()
+
+
 
     def create_canvases(self):
         x = 0

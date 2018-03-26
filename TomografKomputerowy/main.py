@@ -170,7 +170,7 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
         reconstructed = normalize_image_to_one(reconstructed)
 
     if on_finish != None:
-        on_finish(reconstructed)
+        on_finish(reconstructed*255)
 
     return sinogram_arr, reconstructed
 
