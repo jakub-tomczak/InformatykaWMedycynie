@@ -42,7 +42,7 @@ def normalize_image(image):
         return image
     return (image / maxV ) * 255
 
-def parallel_ray(main_point_start, main_angle, minor_angle, diameter, center):
+def parallel_ray( main_angle, minor_angle, diameter, center):
     start = calculatePositionSafe(main_angle + minor_angle, diameter, center)
     end = calculatePositionSafe(main_angle - 180 + (-1)*minor_angle, diameter, center)
     return start, end
@@ -70,6 +70,18 @@ def prepare_image(image):
     new_image[new_center - dy: new_center + dy, new_center - dx: new_center + dx] = image
     return new_image
 
+def check_parameters_values():
+    if type(image) is type(None):
+        raise Exception("Niepoprawne zdjęcie")
+    if n_detectors < 1 or n_detectors >= len(image):
+        raise Exception("Niepoprawna liczba emiterów")
+    if emission_angle<1 or emission_angle >= 360:
+        raise Exception("Niepoprawny kąt rozwarcia")
+    if radon_angle <= 0 or radon_angle>360:
+        raise Exception("Niepoprawny kąt obrotu tomografu")
+    if step <= 0 or step >= radon_angle:
+        raise Exception("Niepoprawny krok przesunięcia")
+
 
 def clear_before_reconstruction(image):
     image_size = len(image)
@@ -88,7 +100,7 @@ def display_status(num, all):
     print("{status}>{spaces}{percent}%".format(status='-' * (p), spaces=(100 - p - 1) * ' ', percent=p))
 
 
-def radon(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, diameter):
+def radon(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, diameter, step):
     angle_between_rays = emission_angle / (n_detectors - 1)
     angles = np.arange(-emission_angle/2, emission_angle/2 + emission_angle/n_detectors , angle_between_rays)
 
@@ -98,14 +110,14 @@ def radon(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, d
     x = 0
     for i in angles:
         if parallel_rays_mode:
-            start, end = parallel_ray(start, angle, i*2, diameter, center)
+            start, end = parallel_ray( angle, i*2, diameter, center )
         else:
             end = inclined_ray(angle, i*2, diameter, center)
         line_sum = draw_line(oryg_image, image, start_point=start, end_point=end)
-        sinogram_arr[angle, x] = line_sum
+        sinogram_arr[step, x] = line_sum
         x += 1
 
-def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors, values):
+def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors, values, step):
     angle_between_rays = emission_angle / (n_detectors - 1)
     angles = np.arange(-emission_angle / 2, emission_angle / 2 + emission_angle / n_detectors, angle_between_rays)
 
@@ -116,31 +128,34 @@ def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors,
     x = 0
     for i in angles:
         if parallel_rays_mode:
-            start, end = parallel_ray(start, angle, i*2, diameter, center)
+            start, end = parallel_ray( angle, i*2, diameter, center )
         else:
             end = inclined_ray(angle, i*2, diameter, center)
-        reconstruct_line(sinogram_value=sinogram[angle, x], reconstruction_image=image, start_point=start, end_point=end, values=values)
+        reconstruct_line(sinogram_value=sinogram[step, x], reconstruction_image=image, start_point=start, end_point=end, values=values)
         x+=1
 
 
 def process(image, on_change, on_inverse_transform_change, on_finish):
+    check_parameters_values()
     #new image
     new_image_size = get_new_image_shape(image)
 
     #keep original image matrix to get original values
     oryg_image = prepare_image(image)
     reconstructed = np.zeros(new_image_size)
-    sinogram_arr = np.zeros((radon_angle, n_detectors))
+    radon_steps = radon_angle // step
+    sinogram_arr = np.zeros((radon_steps, n_detectors))
 
     #create sinogram
     print('Creating sinogram')
-
-    for i in range(0, radon_angle):
+    angle = 0
+    for i in range(0, radon_steps):
         rays_image = np.zeros(new_image_size)
-        display_status(i, radon_angle)
-        radon(oryg_image, rays_image, i, n_detectors, sinogram_arr, emission_angle, diameter=new_image_size[0])
+        display_status(i, radon_steps)
+        radon(oryg_image, rays_image, angle, n_detectors, sinogram_arr, emission_angle, diameter=new_image_size[0], step=i)
         if on_change != None:
-            on_change(oryg_image, rays_image, sinogram_arr, i)
+            on_change(oryg_image, rays_image, sinogram_arr, angle)
+        angle += step
         #plot_image(rays_image+oryg_image)
 
     print('Reconstructing image')
@@ -156,11 +171,13 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
 
     #reconstruct image
     reconstruction_values = np.ones(new_image_size)
-    for i in range(0, radon_angle):
-        display_status(i, radon_angle)
-        inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=i, emission_angle=emission_angle,n_detectors=n_detectors, values = reconstruction_values)
+    angle = 0
+    for i in range(0, radon_steps):
+        display_status(i, radon_steps)
+        inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=angle, emission_angle=emission_angle,n_detectors=n_detectors, values = reconstruction_values, step=i)
         if on_inverse_transform_change != None:
-            on_inverse_transform_change(i)
+            on_inverse_transform_change(angle)
+        angle+=step
     if use_convolution_in_output:
         reconstructed = convolve(reconstructed, kernel_reconstructed)
     #if use_gauss_in_reconstruction:
@@ -181,8 +198,8 @@ n_detectors = 10
 emission_angle = 10
 #   rotation
 radon_angle = 180
-
-step = 0
+#   tomograph step
+step = 1
 
 parallel_rays_mode = False
 normalize_output = True
@@ -207,7 +224,7 @@ file = "photo.png"
 directory = os.getcwd() + "\\res\\"
 
 filename_to_load = ''
-image = np.zeros((1,1))
+image = None
 generate_kernel()
 
 def display_filename():

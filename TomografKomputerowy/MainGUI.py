@@ -64,7 +64,7 @@ class Application(tk.Frame):
     def upload_input_file(self):
         filename = filedialog.askopenfilename(filetypes=[('Image', 'jpg jpeg png gif')])
         if filename == "":
-            pass
+            return
 
         load_input_file(filename)
         img = Image.open(filename)
@@ -80,8 +80,6 @@ class Application(tk.Frame):
         self.canvases[image_type].image = ImageTk.PhotoImage(img)
         self.canvases[image_type].create_image(0, 0, image=canvas.image, anchor=tk.NW)
         self.update()
-
-
 
     def create_canvases(self):
         x = 0
@@ -103,7 +101,7 @@ class Application(tk.Frame):
         default_font = ("Helvetica", 9)
         #error label
         self.error = tk.StringVar()
-        tk.Label(self, textvariable=self.error, fg="red", font=("Helvetica", 16)).grid(row=2, column=3)
+        tk.Label(self, textvariable=self.error, fg="red", font=("Helvetica", 16)).grid(row=2)
 
         tk.Label(self, text="Liczba emiterów", font=default_font).grid(row=3, sticky='w')
         self.detectors_number = tk.Entry(self, width=4, justify=tk.RIGHT)
@@ -187,14 +185,19 @@ text_values = {
 def load_input_file(filename):
     main.filename_to_load = filename
     main.image = misc.imread(filename, flatten=True).astype('float64')
+    app.error.set('')
 
 def start_radon_transform():
     main.radon_angle = int(app.radon_angle.get())
     main.n_detectors = int(app.detectors_number.get())
     main.step = int(app.step.get())
     main.emission_angle = int(app.emission_angle.get())
-    main.process(main.image, on_transform_change, on_inverse_transform_change, on_finish)
-
+    try:
+        main.process(main.image, on_transform_change, on_inverse_transform_change, on_finish)
+    except Exception as e:
+        app.error.set(e)
+    else:
+        app.error.set('')
 def on_transform_change(oryg, rays, sinogram, angle):
     app.set_image_on_canvas(sinogram, ImageType.SINOGRAM)
     app.set_image_on_canvas(rays+oryg, ImageType.ANIMATION_IMAGE)
@@ -205,7 +208,6 @@ def on_inverse_transform_change(angle):
 
 def on_finish(img):
     app.set_image_on_canvas(img, ImageType.OUTPUT_IMAGE)
-
 
 def method(event):
     print(app.scale_value.get())
