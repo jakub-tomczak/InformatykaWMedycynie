@@ -123,27 +123,6 @@ def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors,
         x+=1
 
 
-def rootMeanSquareError(input_image,output_image):
-    error = 0
-    n = 0
-    for x in range(len(input_image)):
-        for y in range(len(input_image[x])):
-            pixelError = pow(input_image[x][y] - output_image[x][y],2)
-            n+=1
-            error += pixelError
-    error = 1/n * error
-    error = np.sqrt(error)
-    return error
-
-def darken(input_image):
-    for x in range(len(input_image)):
-        for y in range(len(input_image[x])):
-            if input_image[x][y] <0.4:
-                input_image[x][y] = 0
-            else:
-                input_image[x][y]-=0.4
-
-
 def process(image, on_change, on_inverse_transform_change, on_finish):
     #new image
     new_image_size = get_new_image_shape(image)
@@ -151,17 +130,19 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
     #keep original image matrix to get original values
     oryg_image = prepare_image(image)
     reconstructed = np.zeros(new_image_size)
-    sinogram_arr = np.zeros((radon_angle, n_detectors))
+    radon_steps = int(radon_angle // step_angle)
+    sinogram_arr = np.zeros((radon_steps, n_detectors))
 
     #create sinogram
     print('Creating sinogram')
-
-    for i in range(0, radon_angle):
+    angle = 0
+    for i in range(0, radon_steps):
         rays_image = np.zeros(new_image_size)
-        display_status(i, radon_angle)
-        radon(oryg_image, rays_image, i, n_detectors, sinogram_arr, emission_angle, diameter=new_image_size[0])
+        display_status(i, radon_steps)
+        radon(oryg_image, rays_image, angle, n_detectors, sinogram_arr, emission_angle, diameter=new_image_size[0], step=i)
         if on_change != None:
-            on_change(oryg_image, rays_image, sinogram_arr, i)
+            on_change(oryg_image, rays_image, sinogram_arr, angle)
+        angle += step_angle
         #plot_image(rays_image+oryg_image)
 
     print('Reconstructing image')
@@ -172,17 +153,18 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
 
     #convolution
     if use_convolution_filter:
-        for i in range(0, radon_angle):
+        for i in range(0, radon_steps):
             sinogram_arr[i, : ] = convolve(sinogram_arr[i, :], kernel)
 
     #reconstruct image
     reconstruction_values = np.ones(new_image_size)
-    for i in range(0, radon_angle):
-        display_status(i, radon_angle)
-        inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=i, emission_angle=emission_angle,n_detectors=n_detectors, values = reconstruction_values)
-
+    angle = 0
+    for i in range(0, radon_steps):
+        display_status(i, radon_steps)
+        inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=angle, emission_angle=emission_angle,n_detectors=n_detectors, values = reconstruction_values, step=i)
         if on_inverse_transform_change != None:
-            on_inverse_transform_change(i)
+            on_inverse_transform_change(i+1, reconstructed)
+        angle+=step_angle
     if use_convolution_in_output:
         reconstructed = convolve(reconstructed, kernel_reconstructed)
     #if use_gauss_in_reconstruction:
@@ -194,8 +176,6 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
     if on_finish != None:
         on_finish(reconstructed*255)
 
-    darken(reconstructed)
-
     return sinogram_arr, reconstructed
 
 #parameters
@@ -205,8 +185,8 @@ n_detectors = 10
 emission_angle = 10
 #   rotation
 radon_angle = 180
-
-step = 0
+#   tomograph step
+step_angle = 20.3
 
 parallel_rays_mode = False
 normalize_output = True
@@ -231,7 +211,7 @@ file = "photo.png"
 directory = os.getcwd() + "\\res\\"
 
 filename_to_load = ''
-image = np.zeros((1,1))
+image = None
 generate_kernel()
 
 def display_filename():
@@ -240,7 +220,7 @@ def display_filename():
 if __name__ == "__main__":
     image = misc.imread('{dir}{file}'.format(dir=directory, file=file), flatten=True).astype('float64')
 
-    sinogram, reconstructed = process(image)
+    sinogram, reconstructed = process(image, None, None, None)
     plot_image(sinogram)
     plot_image(reconstructed)
 
