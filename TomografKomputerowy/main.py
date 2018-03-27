@@ -123,6 +123,27 @@ def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors,
         x+=1
 
 
+def rootMeanSquareError(input_image,output_image):
+    error = 0
+    n = 0
+    for x in range(len(input_image)):
+        for y in range(len(input_image[x])):
+            pixelError = pow(input_image[x][y] - output_image[x][y],2)
+            n+=1
+            error += pixelError
+    error = 1/n * error
+    error = np.sqrt(error)
+    return error
+
+def darken(input_image):
+    for x in range(len(input_image)):
+        for y in range(len(input_image[x])):
+            if input_image[x][y] <0.4:
+                input_image[x][y] = 0
+            else:
+                input_image[x][y]-=0.4
+
+
 def process(image, on_change, on_inverse_transform_change, on_finish):
     #new image
     new_image_size = get_new_image_shape(image)
