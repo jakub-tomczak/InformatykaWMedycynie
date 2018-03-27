@@ -116,8 +116,8 @@ class Application(tk.Frame):
         self.radon_angle.grid(row=5)
 
         tk.Label(self, text="Krok", font=default_font).grid(row=6, sticky='w')
-        self.step = tk.Entry(self, width=4, justify=tk.RIGHT)
-        self.step.grid(row=6)
+        self.step_angle = tk.Entry(self, width=4, justify=tk.RIGHT)
+        self.step_angle.grid(row=6)
 
         self.sinogram_convolution = tkinter.IntVar(value=1)
         self.sinogram_convoltion_checkbox = tk.Checkbutton(self, text="Użyj splotu przy sinorgamie",
@@ -152,10 +152,9 @@ class Application(tk.Frame):
         self.detectors_number.insert(tk.END, main.n_detectors)
         self.radon_angle.insert(tk.END, main.radon_angle)
         self.emission_angle.insert(tk.END, main.emission_angle)
-        self.step.insert(tk.END, main.step)
+        self.step_angle.insert(tk.END, main.step_angle)
 
-        self.reconstruction_progress['value'] = 0
-        self.reconstruction_progress['maximum'] = main.radon_angle - 1
+        self.reset_progressbar()
 
     def update_options(self):
         main.use_convolution_in_output = False if self.use_convolution_at_end.get() == 0 else True
@@ -167,6 +166,10 @@ class Application(tk.Frame):
         self.reconstruction_progress = ttk.Progressbar(self, orient="horizontal",
                                                       length=self.image_size, mode="determinate")
         self.reconstruction_progress.grid(row=1, column=3, rowspan=2)
+    def reset_progressbar(self):
+        self.reconstruction_progress['value'] = 0
+        ratio = main.radon_angle//main.step_angle * main.step_angle
+        self.reconstruction_progress['maximum'] = ratio
 
 
 class ImageType(Enum):
@@ -190,8 +193,9 @@ def load_input_file(filename):
 def start_radon_transform():
     main.radon_angle = int(app.radon_angle.get())
     main.n_detectors = int(app.detectors_number.get())
-    main.step = int(app.step.get())
+    main.step_angle = float(app.step_angle.get())
     main.emission_angle = int(app.emission_angle.get())
+    app.reset_progressbar()
     try:
         main.process(main.image, on_transform_change, on_inverse_transform_change, on_finish)
     except Exception as e:
@@ -202,8 +206,8 @@ def on_transform_change(oryg, rays, sinogram, angle):
     app.set_image_on_canvas(sinogram, ImageType.SINOGRAM)
     app.set_image_on_canvas(rays+oryg, ImageType.ANIMATION_IMAGE)
 
-def on_inverse_transform_change(angle):
-    app.reconstruction_progress['value'] = angle
+def on_inverse_transform_change(iteration):
+    app.reconstruction_progress['value'] = iteration*main.step_angle
     app.reconstruction_progress.update()
 
 def on_finish(img):

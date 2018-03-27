@@ -79,7 +79,7 @@ def check_parameters_values():
         raise Exception("Niepoprawny kąt rozwarcia")
     if radon_angle <= 0 or radon_angle>360:
         raise Exception("Niepoprawny kąt obrotu tomografu")
-    if step <= 0 or step >= radon_angle:
+    if step_angle <= 0 or step_angle >= radon_angle:
         raise Exception("Niepoprawny krok przesunięcia")
 
 
@@ -143,7 +143,7 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
     #keep original image matrix to get original values
     oryg_image = prepare_image(image)
     reconstructed = np.zeros(new_image_size)
-    radon_steps = radon_angle // step
+    radon_steps = int(radon_angle // step_angle)
     sinogram_arr = np.zeros((radon_steps, n_detectors))
 
     #create sinogram
@@ -155,7 +155,7 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
         radon(oryg_image, rays_image, angle, n_detectors, sinogram_arr, emission_angle, diameter=new_image_size[0], step=i)
         if on_change != None:
             on_change(oryg_image, rays_image, sinogram_arr, angle)
-        angle += step
+        angle += step_angle
         #plot_image(rays_image+oryg_image)
 
     print('Reconstructing image')
@@ -166,7 +166,7 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
 
     #convolution
     if use_convolution_filter:
-        for i in range(0, radon_angle):
+        for i in range(0, radon_steps):
             sinogram_arr[i, : ] = convolve(sinogram_arr[i, :], kernel)
 
     #reconstruct image
@@ -176,8 +176,8 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
         display_status(i, radon_steps)
         inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=angle, emission_angle=emission_angle,n_detectors=n_detectors, values = reconstruction_values, step=i)
         if on_inverse_transform_change != None:
-            on_inverse_transform_change(angle)
-        angle+=step
+            on_inverse_transform_change(i+1)
+        angle+=step_angle
     if use_convolution_in_output:
         reconstructed = convolve(reconstructed, kernel_reconstructed)
     #if use_gauss_in_reconstruction:
@@ -199,7 +199,7 @@ emission_angle = 10
 #   rotation
 radon_angle = 180
 #   tomograph step
-step = 1
+step_angle = 20.3
 
 parallel_rays_mode = False
 normalize_output = True
@@ -233,7 +233,7 @@ def display_filename():
 if __name__ == "__main__":
     image = misc.imread('{dir}{file}'.format(dir=directory, file=file), flatten=True).astype('float64')
 
-    sinogram, reconstructed = process(image)
+    sinogram, reconstructed = process(image, None, None, None)
     plot_image(sinogram)
     plot_image(reconstructed)
 
