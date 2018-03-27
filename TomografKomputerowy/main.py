@@ -88,7 +88,7 @@ def display_status(num, all):
     print("{status}>{spaces}{percent}%".format(status='-' * (p), spaces=(100 - p - 1) * ' ', percent=p))
 
 
-def radon(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, diameter):
+def radon(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, diameter, step):
     angle_between_rays = emission_angle / (n_detectors - 1)
     angles = np.arange(-emission_angle/2, emission_angle/2 + emission_angle/n_detectors , angle_between_rays)
 
@@ -102,10 +102,10 @@ def radon(oryg_image, image, angle, n_detectors, sinogram_arr, emission_angle, d
         else:
             end = inclined_ray(angle, i*2, diameter, center)
         line_sum = draw_line(oryg_image, image, start_point=start, end_point=end)
-        sinogram_arr[angle, x] = line_sum
+        sinogram_arr[step, x] = line_sum
         x += 1
 
-def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors, values):
+def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors, values, step):
     angle_between_rays = emission_angle / (n_detectors - 1)
     angles = np.arange(-emission_angle / 2, emission_angle / 2 + emission_angle / n_detectors, angle_between_rays)
 
@@ -119,7 +119,7 @@ def inverse_radon(image, sinogram, diameter, angle, emission_angle, n_detectors,
             start, end = parallel_ray(start, angle, i*2, diameter, center)
         else:
             end = inclined_ray(angle, i*2, diameter, center)
-        reconstruct_line(sinogram_value=sinogram[angle, x], reconstruction_image=image, start_point=start, end_point=end, values=values)
+        reconstruct_line(sinogram_value=sinogram[step, x], reconstruction_image=image, start_point=start, end_point=end, values=values)
         x+=1
 
 
