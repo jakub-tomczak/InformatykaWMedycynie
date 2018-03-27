@@ -197,6 +197,7 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
     if on_finish != None:
         on_finish(reconstructed*255)
 
+    darken( reconstructed)
     return sinogram_arr, reconstructed
 
 #parameters
