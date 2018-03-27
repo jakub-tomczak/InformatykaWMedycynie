@@ -176,7 +176,7 @@ def process(image, on_change, on_inverse_transform_change, on_finish):
         display_status(i, radon_steps)
         inverse_radon(reconstructed, sinogram_arr, diameter=new_image_size[0], angle=angle, emission_angle=emission_angle,n_detectors=n_detectors, values = reconstruction_values, step=i)
         if on_inverse_transform_change != None:
-            on_inverse_transform_change(i+1)
+            on_inverse_transform_change(i+1, reconstructed)
         angle+=step_angle
     if use_convolution_in_output:
         reconstructed = convolve(reconstructed, kernel_reconstructed)

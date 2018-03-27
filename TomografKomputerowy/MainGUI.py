@@ -206,9 +206,10 @@ def on_transform_change(oryg, rays, sinogram, angle):
     app.set_image_on_canvas(sinogram, ImageType.SINOGRAM)
     app.set_image_on_canvas(rays+oryg, ImageType.ANIMATION_IMAGE)
 
-def on_inverse_transform_change(iteration):
+def on_inverse_transform_change(iteration, reconstructed):
     app.reconstruction_progress['value'] = iteration*main.step_angle
     app.reconstruction_progress.update()
+    app.set_image_on_canvas(reconstructed, ImageType.OUTPUT_IMAGE)
 
 def on_finish(img):
     app.set_image_on_canvas(img, ImageType.OUTPUT_IMAGE)
