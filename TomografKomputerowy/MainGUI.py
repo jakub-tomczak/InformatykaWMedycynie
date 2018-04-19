@@ -87,8 +87,12 @@ class Application(tk.Frame):
             self.canvases[i] = Canvas(self, width=self.image_size, height=self.image_size, bg='white')
             self.canvases[i].create_rectangle(2, 2, self.image_size, self.image_size)
             self.canvases[i].create_text(self.image_size // 2, self.image_size // 2, text=text_values[i])
-            self.canvases[i].grid(row=0, column=x)
-            x+=1
+            if i == ImageType.GRAPH:
+                continue
+                #self.canvases[i].grid(row=1, column=2, rowspan=15)
+            else:
+                self.canvases[i].grid(row=0, column=x)
+                x+=1
 
     def create_scroll_bar(self):
         self.scale = Scale(self, from_=0, to_=150, tickinterval=10,length=self.image_size - 20,
@@ -177,12 +181,14 @@ class ImageType(Enum):
     SINOGRAM = 2
     ANIMATION_IMAGE = 3
     OUTPUT_IMAGE = 4
+    GRAPH = 5
 
 text_values = {
             ImageType.INPUT_IMAGE: 'Obraz wejściowy',
             ImageType.SINOGRAM: 'Sinogram',
             ImageType.ANIMATION_IMAGE: 'Animacja',
-            ImageType.OUTPUT_IMAGE: 'Obraz wyjściowy'
+            ImageType.OUTPUT_IMAGE: 'Obraz wyjściowy',
+            ImageType.GRAPH: 'Błąd średniokwadratowy'
 }
 
 def load_input_file(filename):
@@ -211,8 +217,9 @@ def on_inverse_transform_change(iteration, reconstructed):
     app.reconstruction_progress.update()
     app.set_image_on_canvas(reconstructed, ImageType.OUTPUT_IMAGE)
 
-def on_finish(img):
+def on_finish(img, graph):
     app.set_image_on_canvas(img, ImageType.OUTPUT_IMAGE)
+    #app.set_image_on_canvas(graph, ImageType.PLOT_GRAPH)
 
 def method(event):
     print(app.scale_value.get())
