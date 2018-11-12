@@ -283,7 +283,7 @@ kernel_reconstructed = np.ones((9,9))
 
 #file to transform
 file = "watroba.png"
-directory = os.getcwd() + "\\res\\"
+directory = os.path.join(os.getcwd(), "res")
 
 filename_to_load = ''
 image = None
@@ -293,7 +293,8 @@ def display_filename():
     print('file is ' + filename_to_load)
 
 if __name__ == "__main__":
-    image = misc.imread('{dir}{file}'.format(dir=directory, file=file), flatten=True).astype('float64')
+    print(file)
+    image = misc.imread(os.path.join(directory, file), flatten=True).astype('float64')
 
     sinogram, reconstructed = process(image, None, None, None)
     plot_image(sinogram)
